@@ -4,9 +4,11 @@ import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
 	"crypto/rand"
+	"crypto/sha1"
 	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
+	"encoding/hex"
 	"encoding/pem"
 	"errors"
 	"fmt"
@@ -164,6 +166,18 @@ func (ca *CertAuthority) Fingerprint() string {
 		parts = append(parts, strings.ToUpper(sum[i:i+2]))
 	}
 	return strings.Join(parts, ":")
+}
+
+// WindowsThumbprint is the SHA-1 thumbprint in the format Windows shows in its
+// "Security Warning" dialog when installing the CA (8-digit groups).
+func (ca *CertAuthority) WindowsThumbprint() string {
+	sum := sha1.Sum(ca.cert.Raw)
+	h := strings.ToUpper(hex.EncodeToString(sum[:]))
+	var parts []string
+	for i := 0; i < len(h); i += 8 {
+		parts = append(parts, h[i:i+8])
+	}
+	return strings.Join(parts, " ")
 }
 
 // GetCertificate issues (and caches) a leaf for whatever address the client

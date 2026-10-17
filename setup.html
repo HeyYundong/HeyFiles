@@ -32,6 +32,9 @@
   li { margin: 4px 0; }
   #status { font-weight: 600; }
   #status.ok { color: var(--ok); }
+  .step-title { font-weight: 600; margin-top: 14px; }
+  .warn { color: var(--primary); }
+  kbd { font-family: inherit; border: 1px solid var(--border); padding: 0 5px; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -59,7 +62,7 @@
 
   <section class="card">
     <h2 style="margin:0;font-size:18px">第 2 步：安装并信任</h2>
-    <details open>
+    <details id="os-ios" open>
       <summary>iPhone / iPad</summary>
       <ol>
         <li>用 <b>Safari</b> 点上面的下载按钮，选择「允许」。</li>
@@ -67,7 +70,7 @@
         <li>再到「设置 → 通用 → 关于本机 → 证书信任设置」，打开 HeyFiles Local CA 的开关。</li>
       </ol>
     </details>
-    <details>
+    <details id="os-android">
       <summary>Android</summary>
       <ol>
         <li>点下载按钮，保存证书文件。</li>
@@ -75,22 +78,58 @@
         <li>选择刚下载的 HeyFiles-CA.crt。</li>
       </ol>
     </details>
-    <details>
-      <summary>Windows</summary>
+    <details id="os-windows">
+      <summary>Windows 10 / 11（Chrome、Edge）</summary>
+      <p class="muted" style="margin-top:8px">Chrome 和 Edge 用的是 Windows 系统证书库，装一次两个浏览器都生效。括号里是英文版 Windows 的按钮名称。</p>
+
+      <p class="step-title">方法一：图形界面</p>
       <ol>
-        <li>双击下载的 HeyFiles-CA.crt → 安装证书。</li>
-        <li>选择「本地计算机」（或当前用户）→「将所有的证书都放入下列存储」→「受信任的根证书颁发机构」。</li>
-        <li>完成后重启浏览器。Firefox 需在 设置 → 隐私与安全 → 证书 → 查看证书 → 证书颁发机构 里单独导入。</li>
+        <li>点上面的「下载 HeyFiles 证书」。如果浏览器提示文件可能有害，选「保留」（Keep）。</li>
+        <li>在下载列表或「下载」文件夹里<b>双击 HeyFiles-CA.crt</b>。如果弹出“打开文件 - 安全警告”，点「打开」（Open）。</li>
+        <li>在证书窗口里点「安装证书…」（Install Certificate…）。</li>
+        <li>存储位置选「<b>当前用户</b>」（Current User），点「下一步」（Next）。<br><span class="muted">选「本地计算机」（Local Machine）对这台电脑的所有用户生效，但需要管理员权限。</span></li>
+        <li class="warn">⚠ 到“证书存储”（Certificate Store）这一步，<b>不要用默认的“自动选择”</b>（Automatically select…）。默认会把证书放进“中间证书颁发机构”，浏览器还是不会信任。</li>
+        <li>选「<b>将所有的证书都放入下列存储</b>」（Place all certificates in the following store）→ 点「浏览…」（Browse…）→ 选「<b>受信任的根证书颁发机构</b>」（Trusted Root Certification Authorities）→「确定」（OK）。</li>
+        <li>点「下一步」（Next）→「完成」（Finish）。</li>
+        <li>会弹出“安全警告”（Security Warning），问是否安装 HeyFiles Local CA。先核对里面的<b>指纹 (sha1)</b>（Thumbprint (sha1)）是否和下面这串一致，一致再点「是」（Yes）：
+          <div class="mono" style="margin-top:4px">{{.Thumbprint}}</div>
+        </li>
+        <li>看到“导入成功”（The import was successful）就装好了。</li>
       </ol>
+
+      <p class="step-title">方法二：一条命令（适合熟悉命令行的用户）</p>
+      <p>下载证书后，打开“命令提示符”或 PowerShell（不需要管理员），运行：</p>
+      <p class="mono" style="background:var(--bg);padding:8px;border:1px solid var(--border)">certutil -user -addstore Root "%USERPROFILE%\Downloads\HeyFiles-CA.crt"</p>
+      <p class="muted">PowerShell 里把 <code>%USERPROFILE%</code> 换成 <code>$env:USERPROFILE</code>。同样会弹出安全警告，核对指纹后点「是」。</p>
+
+      <p class="step-title">装好之后</p>
+      <ol>
+        <li><b>彻底关闭浏览器</b>：关掉所有窗口，并检查右下角托盘里有没有 Chrome / Edge 图标还在后台运行，有就右键退出。</li>
+        <li>重新打开浏览器，访问本页。显示“已信任”后会自动跳转到 HTTPS，地址栏出现小锁、没有“不安全”（Not secure）就成功了。</li>
+      </ol>
+
+      <p class="step-title">还是提示“不安全”？</p>
+      <ol>
+        <li>按 <kbd>Win</kbd> + <kbd>R</kbd>，输入 <code>certmgr.msc</code> 回车。</li>
+        <li>看「受信任的根证书颁发机构 → 证书」（Trusted Root Certification Authorities → Certificates）里有没有 <b>HeyFiles Local CA</b>。</li>
+        <li>没有的话，多半是装到了「中间证书颁发机构」（Intermediate Certification Authorities）。在那里删掉它，再按上面的步骤重新安装。</li>
+        <li>装好后一定要彻底重启浏览器。</li>
+      </ol>
+
+      <p class="step-title">Firefox</p>
+      <p>Firefox 默认用自己的证书库：设置 → 隐私与安全 → 证书 →「查看证书」→「证书颁发机构」→「导入」，选 HeyFiles-CA.crt，勾选「信任由此证书颁发机构来标识网站」。</p>
+
+      <p class="step-title">以后想删除</p>
+      <p>打开 <code>certmgr.msc</code> →「受信任的根证书颁发机构 → 证书」→ 右键 HeyFiles Local CA →「删除」。</p>
     </details>
-    <details>
+    <details id="os-mac">
       <summary>macOS</summary>
       <ol>
         <li>双击下载的证书，添加到「登录」钥匙串。</li>
         <li>在「钥匙串访问」里双击 HeyFiles Local CA → 信任 →「使用此证书时」选「始终信任」。</li>
       </ol>
     </details>
-    <details>
+    <details id="os-linux">
       <summary>Linux</summary>
       <ol>
         <li>Chrome / Chromium：设置 → 隐私和安全 → 安全 → 管理证书 → 授权机构 → 导入。</li>
@@ -128,6 +167,16 @@
     } catch {
       statusEl.textContent = "这台设备还没有信任 HeyFiles 证书，请按下面的步骤安装。";
     }
+  }
+  // Expand the instructions for this device's OS.
+  const ua = navigator.userAgent;
+  const os = /iPhone|iPad/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1) ? "ios"
+    : /Android/.test(ua) ? "android"
+    : /Windows/.test(ua) ? "windows"
+    : /Macintosh/.test(ua) ? "mac"
+    : /Linux/.test(ua) ? "linux" : "";
+  if (os) {
+    document.querySelectorAll("details[id^='os-']").forEach((d) => { d.open = d.id === "os-" + os; });
   }
   document.getElementById("recheck").addEventListener("click", check);
   check();

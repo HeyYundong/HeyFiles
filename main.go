@@ -62,6 +62,7 @@ func main() {
 
 	log.Printf("HeyFiles listening on :%s (HTTPS and HTTP share this port)", port)
 	log.Printf("CA certificate SHA-256: %s", ca.Fingerprint())
+	log.Printf("CA thumbprint (Windows, SHA-1): %s", ca.WindowsThumbprint())
 	for _, ip := range lanIPs() {
 		log.Printf("  open http://%s:%s on each device to install the certificate", ip, port)
 	}
@@ -126,6 +127,7 @@ func setupRoutes(ca *CertAuthority) http.Handler {
 		tmpl.Execute(w, map[string]string{
 			"HTTPSURL":    "https://" + r.Host,
 			"Fingerprint": ca.Fingerprint(),
+			"Thumbprint":  ca.WindowsThumbprint(),
 		})
 	})
 	return mux
@@ -244,4 +246,3 @@ func env(key, def string) string {
 	}
 	return def
 }
-

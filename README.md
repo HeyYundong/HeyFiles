@@ -71,6 +71,7 @@ podman logs heyfiles
 ```
 HeyFiles listening on :7000 (HTTPS and HTTP share this port)
 CA certificate SHA-256: 3A:7F:…
+CA thumbprint (Windows, SHA-1): 1A2B3C4D …
   open http://192.168.1.20:7000 on each device to install the certificate
 ```
 
@@ -90,9 +91,54 @@ sudo ufw allow 7000/tcp
 |---|---|
 | iPhone / iPad | 用 Safari 下载 → 「设置」顶部「已下载描述文件」→ 安装 →「设置 → 通用 → 关于本机 → 证书信任设置」打开开关 |
 | Android | 下载 → 「设置 → 安全 → 加密与凭据 → 安装证书 → CA 证书」（可在设置里搜索“CA 证书”） |
-| Windows | 双击 `.crt` → 安装证书 → 放入「受信任的根证书颁发机构」→ 重启浏览器 |
+| Windows | 见下方 [Windows 详细步骤](#windows-详细步骤)。注意：**不要用默认的“自动选择存储”** |
 | macOS | 双击加入钥匙串 → 在「钥匙串访问」里把 HeyFiles Local CA 设为「始终信任」 |
 | Firefox（所有系统） | Firefox 用自己的证书库：设置 → 隐私与安全 → 证书 → 查看证书 → 证书颁发机构 → 导入 |
+
+#### Windows 详细步骤
+
+Chrome 和 Edge 都使用 Windows 系统证书库，装一次两个浏览器都生效。括号里是英文版 Windows 的按钮名称。
+
+**方法一：图形界面**
+
+1. 在安装页点「下载 HeyFiles 证书」。如果浏览器提示文件可能有害，选「保留」（Keep）。
+2. 双击下载的 `HeyFiles-CA.crt`。如果弹出“打开文件 - 安全警告”，点「打开」（Open）。
+3. 点「安装证书…」（Install Certificate…）。
+4. 存储位置选「当前用户」（Current User）→「下一步」（Next）。
+   选「本地计算机」（Local Machine）对所有用户生效，但需要管理员权限。
+5. ⚠ 到“证书存储”（Certificate Store）这一步，**不要用默认的「根据证书类型，自动选择证书存储」**（Automatically select the certificate store…）。默认会把证书放进“中间证书颁发机构”，浏览器仍然不会信任。
+6. 选「将所有的证书都放入下列存储」（Place all certificates in the following store）→「浏览…」（Browse…）→「**受信任的根证书颁发机构**」（Trusted Root Certification Authorities）→「确定」（OK）。
+7. 「下一步」（Next）→「完成」（Finish）。
+8. 弹出“安全警告”（Security Warning）时，核对其中的「指纹 (sha1)」（Thumbprint (sha1)）。它要和安装页上、以及 `podman logs heyfiles` 中 `CA thumbprint (Windows, SHA-1)` 那一行一致。一致再点「是」（Yes）。
+9. 看到“导入成功”（The import was successful）即完成。
+
+**方法二：命令行**
+
+下载证书后，在“命令提示符”里运行（不需要管理员）：
+
+```bat
+certutil -user -addstore Root "%USERPROFILE%\Downloads\HeyFiles-CA.crt"
+```
+
+PowerShell 里把 `%USERPROFILE%` 换成 `$env:USERPROFILE`。同样会弹出安全警告，核对指纹后点「是」。
+
+**装好之后**
+
+- **彻底关闭浏览器**：关闭所有窗口，并在任务栏右下角托盘里退出仍在后台运行的 Chrome / Edge。重新打开后访问 `http://<服务器IP>:7000`，页面检测到已信任会自动跳转到 HTTPS。
+- 地址栏有小锁、没有“不安全”（Not secure），就说明成功了。
+
+**还是提示“不安全”？**
+
+1. 按 `Win + R`，输入 `certmgr.msc` 回车。
+2. 在「受信任的根证书颁发机构 → 证书」里找 **HeyFiles Local CA**。
+3. 如果没有，多半装到了「中间证书颁发机构」（Intermediate Certification Authorities）。在那里删掉它，再按上面的步骤重新安装。
+4. 重新安装后要彻底重启浏览器。
+
+**Firefox**：默认使用自己的证书库。在 设置 → 隐私与安全 → 证书 →「查看证书」→「证书颁发机构」→「导入」，勾选「信任由此证书颁发机构来标识网站」。
+
+**删除证书**：打开 `certmgr.msc` →「受信任的根证书颁发机构 → 证书」→ 右键 HeyFiles Local CA →「删除」。
+
+---
 
 安装页也是 HTTP 的，为了防止证书在下载途中被调包，可以把页面上显示的指纹和 `podman logs heyfiles` 里的对比一下。
 
