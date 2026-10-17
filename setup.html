@@ -1,0 +1,136 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HeyFiles · 安装证书</title>
+<style>
+  :root {
+    --bg: #fafaf9; --fg: #1c1917; --muted: #78716c; --card: #ffffff;
+    --border: #e7e5e4; --primary: #c2410c; --primary-fg: #fff7ed; --ok: #15803d;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1c1917; --fg: #fafaf9; --muted: #a8a29e; --card: #292524;
+      --border: #44403c; --primary: #ea580c; --primary-fg: #fff7ed; --ok: #4ade80;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 15px/1.6 system-ui, -apple-system, "PingFang SC", "Noto Sans SC", sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 32px 16px 48px; display: flex; flex-direction: column; gap: 20px; }
+  h1 { margin: 0; font-size: 24px; }
+  p { margin: 0; }
+  .muted { color: var(--muted); }
+  .card { background: var(--card); border: 1px solid var(--border); padding: 20px; display: flex; flex-direction: column; gap: 12px; }
+  .btn { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 0 18px; background: var(--primary); color: var(--primary-fg); text-decoration: none; font-weight: 600; border: 0; }
+  .btn.secondary { background: transparent; color: var(--fg); border: 1px solid var(--border); }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; }
+  code, .mono { font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace; font-size: 12px; word-break: break-all; }
+  details { border-top: 1px solid var(--border); padding-top: 10px; }
+  summary { cursor: pointer; font-weight: 600; min-height: 32px; }
+  ol { margin: 8px 0 0; padding-left: 20px; }
+  li { margin: 4px 0; }
+  #status { font-weight: 600; }
+  #status.ok { color: var(--ok); }
+</style>
+</head>
+<body>
+<main>
+  <div>
+    <h1>HeyFiles</h1>
+    <p class="muted">内网设备间加密传文件。每台设备第一次使用前，需要先安装一次 HeyFiles 证书。</p>
+  </div>
+
+  <section class="card" aria-live="polite">
+    <p id="status">正在检测这台设备是否已信任 HeyFiles…</p>
+    <div class="row">
+      <a class="btn" id="open" href="{{.HTTPSURL}}" hidden>进入 HeyFiles</a>
+    </div>
+  </section>
+
+  <section class="card">
+    <h2 style="margin:0;font-size:18px">第 1 步：下载证书</h2>
+    <div class="row">
+      <a class="btn" href="/ca.crt">下载 HeyFiles 证书</a>
+    </div>
+    <p class="muted">证书指纹（SHA-256），可与服务器启动日志里的对比：</p>
+    <p class="mono">{{.Fingerprint}}</p>
+  </section>
+
+  <section class="card">
+    <h2 style="margin:0;font-size:18px">第 2 步：安装并信任</h2>
+    <details open>
+      <summary>iPhone / iPad</summary>
+      <ol>
+        <li>用 <b>Safari</b> 点上面的下载按钮，选择「允许」。</li>
+        <li>打开「设置」，顶部会出现「已下载描述文件」，点进去 → 安装。</li>
+        <li>再到「设置 → 通用 → 关于本机 → 证书信任设置」，打开 HeyFiles Local CA 的开关。</li>
+      </ol>
+    </details>
+    <details>
+      <summary>Android</summary>
+      <ol>
+        <li>点下载按钮，保存证书文件。</li>
+        <li>「设置 → 安全 → 更多安全设置 → 加密与凭据 → 安装证书 → CA 证书」（不同品牌位置略有差异，可在设置里搜索“CA 证书”）。</li>
+        <li>选择刚下载的 HeyFiles-CA.crt。</li>
+      </ol>
+    </details>
+    <details>
+      <summary>Windows</summary>
+      <ol>
+        <li>双击下载的 HeyFiles-CA.crt → 安装证书。</li>
+        <li>选择「本地计算机」（或当前用户）→「将所有的证书都放入下列存储」→「受信任的根证书颁发机构」。</li>
+        <li>完成后重启浏览器。Firefox 需在 设置 → 隐私与安全 → 证书 → 查看证书 → 证书颁发机构 里单独导入。</li>
+      </ol>
+    </details>
+    <details>
+      <summary>macOS</summary>
+      <ol>
+        <li>双击下载的证书，添加到「登录」钥匙串。</li>
+        <li>在「钥匙串访问」里双击 HeyFiles Local CA → 信任 →「使用此证书时」选「始终信任」。</li>
+      </ol>
+    </details>
+    <details>
+      <summary>Linux</summary>
+      <ol>
+        <li>Chrome / Chromium：设置 → 隐私和安全 → 安全 → 管理证书 → 授权机构 → 导入。</li>
+        <li>Firefox：设置 → 隐私与安全 → 证书 → 查看证书 → 证书颁发机构 → 导入。</li>
+      </ol>
+    </details>
+  </section>
+
+  <section class="card">
+    <h2 style="margin:0;font-size:18px">第 3 步：打开 HTTPS 地址</h2>
+    <p class="mono">{{.HTTPSURL}}</p>
+    <div class="row">
+      <a class="btn secondary" href="{{.HTTPSURL}}">打开</a>
+      <button class="btn secondary" type="button" id="recheck">重新检测</button>
+    </div>
+    <p class="muted">这个证书只能用于内网地址，即使泄露也无法冒充外网网站。</p>
+  </section>
+</main>
+<script>
+  const httpsURL = {{.HTTPSURL}};
+  const statusEl = document.getElementById("status");
+  const openEl = document.getElementById("open");
+  async function check() {
+    statusEl.className = "";
+    statusEl.textContent = "正在检测这台设备是否已信任 HeyFiles…";
+    try {
+      const ctrl = new AbortController();
+      setTimeout(() => ctrl.abort(), 4000);
+      const res = await fetch(httpsURL + "/api/ping", { cache: "no-store", signal: ctrl.signal });
+      if (!res.ok) throw new Error();
+      statusEl.className = "ok";
+      statusEl.textContent = "这台设备已信任 HeyFiles，正在跳转…";
+      openEl.hidden = false;
+      setTimeout(() => { location.href = httpsURL; }, 800);
+    } catch {
+      statusEl.textContent = "这台设备还没有信任 HeyFiles 证书，请按下面的步骤安装。";
+    }
+  }
+  document.getElementById("recheck").addEventListener("click", check);
+  check();
+</script>
+</body>
+</html>

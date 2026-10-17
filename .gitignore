@@ -1,0 +1,4 @@
+/data/
+/heyfiles
+# Built frontend is embedded at compile time; keep only a placeholder out of git.
+/web/dist/
