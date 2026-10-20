@@ -1,5 +1,5 @@
 import { HugeiconsIcon } from "@hugeicons/react"
-import { File01Icon, LockIcon } from "@hugeicons/core-free-icons"
+import { File01Icon, LockIcon, TextIcon } from "@hugeicons/core-free-icons"
 
 import { SasCode } from "@/components/transfer-panel"
 import { Button } from "@/components/ui/button"
@@ -19,7 +19,7 @@ import { actions } from "@/lib/store"
 const MEMORY_WARN = 1 << 30
 
 export function IncomingDialog({ session: s }: { session: SessionSnapshot | null }) {
-  const open = Boolean(s && s.direction === "receive" && s.state === "confirm" && s.files.length)
+  const open = Boolean(s && s.direction === "receive" && s.state === "confirm" && (s.files.length || s.textLength))
 
   return (
     <Dialog
@@ -32,11 +32,28 @@ export function IncomingDialog({ session: s }: { session: SessionSnapshot | null
         <DialogContent showCloseButton={false} className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base">
-              {s.peer.name} 想发送 {s.files.length} 个文件给你
+              {s.peer.name} 想发送{" "}
+              {[s.files.length && `${s.files.length} 个文件`, s.textLength && "一段文字"]
+                .filter(Boolean)
+                .join("和")}
+              给你
             </DialogTitle>
-            <DialogDescription>共 {formatBytes(s.total)}</DialogDescription>
+            <DialogDescription>
+              {[s.files.length && `文件共 ${formatBytes(s.total)}`, s.textLength && `文字 ${s.textLength} 字`]
+                .filter(Boolean)
+                .join(" · ")}
+            </DialogDescription>
           </DialogHeader>
 
+          {s.textLength > 0 && (
+            <div className="flex items-center gap-2 bg-muted px-3 py-2 text-sm">
+              <HugeiconsIcon icon={TextIcon} strokeWidth={2} className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">文字消息</span>
+              <span className="shrink-0 font-mono text-xs text-muted-foreground">{s.textLength} 字</span>
+            </div>
+          )}
+
+          {s.files.length > 0 && (
           <ul className="flex max-h-48 flex-col gap-1 overflow-y-auto">
             {s.files.map((f, i) => (
               <li key={i} className="flex items-center gap-2 bg-muted px-3 py-2 text-sm">
@@ -48,6 +65,7 @@ export function IncomingDialog({ session: s }: { session: SessionSnapshot | null
               </li>
             ))}
           </ul>
+          )}
 
           <div className="flex items-center justify-between gap-3 border p-3">
             <span className="flex items-center gap-2 text-xs text-muted-foreground">

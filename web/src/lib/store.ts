@@ -79,7 +79,7 @@ export const actions = {
     started = true
     signaling.connect()
   },
-  sendFiles(peer: Peer, files: File[]) {
+  send(peer: Peer, files: File[], text: string) {
     if (session && !session.isFinal()) return
     session?.dispose()
     session = new Session({
@@ -88,6 +88,7 @@ export const actions = {
       peer,
       signaling,
       files,
+      text,
       onChange: syncSession,
     })
     syncSession()

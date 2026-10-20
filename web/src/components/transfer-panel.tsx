@@ -1,13 +1,16 @@
+import { useState } from "react"
 import { HugeiconsIcon } from "@hugeicons/react"
 import {
   ArrowRight02Icon,
   CheckmarkCircle02Icon,
+  Copy01Icon,
   Download04Icon,
   LockIcon,
 } from "@hugeicons/core-free-icons"
 
 import { Button } from "@/components/ui/button"
 import { Progress } from "@/components/ui/progress"
+import { Textarea } from "@/components/ui/textarea"
 import { formatBytes, formatSpeed } from "@/lib/format"
 import type { SessionSnapshot } from "@/lib/session"
 import { actions, useApp } from "@/lib/store"
@@ -32,12 +35,53 @@ function saveAll(s: SessionSnapshot) {
   })
 }
 
+async function copyText(text: string, el: HTMLTextAreaElement | null) {
+  try {
+    await navigator.clipboard.writeText(text)
+  } catch {
+    // Clipboard API needs a secure context and focus; fall back to selection.
+    el?.select()
+    document.execCommand("copy")
+  }
+}
+
+function ReceivedText({ text }: { text: string }) {
+  const [copied, setCopied] = useState(false)
+  const [el, setEl] = useState<HTMLTextAreaElement | null>(null)
+  return (
+    <div className="flex flex-col gap-2">
+      <Textarea ref={setEl} readOnly value={text} aria-label="收到的文字" className="max-h-72" />
+      <Button
+        variant="outline"
+        size="sm"
+        className="self-end"
+        onClick={() =>
+          void copyText(text, el).then(() => {
+            setCopied(true)
+            setTimeout(() => setCopied(false), 1500)
+          })
+        }
+      >
+        <HugeiconsIcon icon={copied ? CheckmarkCircle02Icon : Copy01Icon} strokeWidth={2} />
+        {copied ? "已复制" : "复制文字"}
+      </Button>
+    </div>
+  )
+}
+
 export function TransferPanel({ session: s }: { session: SessionSnapshot }) {
   const { me } = useApp()
   const sending = s.direction === "send"
   const from = sending ? me.name : s.peer.name
   const to = sending ? s.peer.name : me.name
-  const pct = s.total ? Math.min(100, (s.transferred / s.total) * 100) : 0
+  const pct = s.total
+    ? Math.min(100, (s.transferred / s.total) * 100)
+    : s.state === "done"
+      ? 100
+      : 0
+  const summary = [s.files.length && `${s.files.length} 个文件`, s.textLength && "文字"]
+    .filter(Boolean)
+    .join(" + ")
   const final = ["done", "rejected", "cancelled", "failed"].includes(s.state)
   const current = s.files[s.currentIndex]
 
@@ -75,7 +119,7 @@ export function TransferPanel({ session: s }: { session: SessionSnapshot }) {
           <div className="flex justify-between gap-3 text-xs text-muted-foreground">
             <span className="truncate">
               {s.state === "done"
-                ? `传输完成 · ${s.files.length} 个文件`
+                ? `传输完成 · ${summary}`
                 : current
                   ? `${s.currentIndex + 1}/${s.files.length} · ${current.name}`
                   : "准备中…"}
@@ -85,7 +129,9 @@ export function TransferPanel({ session: s }: { session: SessionSnapshot }) {
         </div>
       )}
 
-      {s.state === "done" && !sending && (
+      {s.state === "done" && !sending && s.textLength > 0 && <ReceivedText text={s.text} />}
+
+      {s.state === "done" && !sending && s.files.length > 0 && (
         s.streaming ? (
           <p className="flex items-center gap-2 text-sm">
             <HugeiconsIcon icon={CheckmarkCircle02Icon} strokeWidth={2} className="size-4 text-emerald-600" />

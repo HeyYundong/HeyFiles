@@ -6,7 +6,8 @@ import { canStream, createSink, type Sink } from "@/lib/sinks"
 // everything on the wire; the server only relays the offer/answer.
 //
 // DataChannel protocol (JSON text frames + binary chunks, ordered & reliable):
-//   sender → {t:"meta", files}        receiver → {t:"accept"} | {t:"reject"}
+//   sender → {t:"meta", files, text}  receiver → {t:"accept"} | {t:"reject"}
+//   sender → {t:"text", s}…           (only if meta.text > 0; joined in order)
 //   sender → {t:"file", i}, <binary chunks>…, {t:"file-end", i}  (per file)
 //   sender → {t:"done"}               receiver → {t:"ack"}
 //   either → {t:"cancel"}
@@ -22,6 +23,11 @@ export type SessionState =
   | "cancelled"
   | "failed"
 
+// Text rides the control channel in slices small enough for any browser's
+// SCTP message limit (Safari's is the lowest).
+export const MAX_TEXT = 1_000_000
+const TEXT_SLICE = 16_000
+
 export type ReceivedFile = FileMeta & { url: string | null }
 
 export type SessionSnapshot = {
@@ -31,6 +37,8 @@ export type SessionSnapshot = {
   state: SessionState
   sas: string
   files: FileMeta[]
+  text: string
+  textLength: number // announced in meta; text fills in after accept on the receiver
   total: number
   transferred: number
   speed: number
@@ -46,7 +54,8 @@ const HIGH_WATER = 8 << 20 // Chrome errors once the send queue passes 16 MB
 const LOW_WATER = 2 << 20
 
 type Control =
-  | { t: "meta"; files: FileMeta[] }
+  | { t: "meta"; files: FileMeta[]; text?: number }
+  | { t: "text"; s: string }
   | { t: "accept" }
   | { t: "reject" }
   | { t: "file"; i: number }
@@ -74,12 +83,14 @@ export class Session {
     peer: Peer
     signaling: Signaling
     files?: File[]
+    text?: string
     onChange: () => void
   }) {
     this.sid = opts.sid
     this.signaling = opts.signaling
     this.onChange = opts.onChange
     this.outgoing = opts.files ?? []
+    const text = (opts.text ?? "").slice(0, MAX_TEXT)
     const files = this.outgoing.map((f) => ({ name: f.name, size: f.size, type: f.type }))
     this.snapshot = {
       sid: opts.sid,
@@ -88,6 +99,8 @@ export class Session {
       state: "connecting",
       sas: "",
       files,
+      text,
+      textLength: text.length,
       total: files.reduce((n, f) => n + f.size, 0),
       transferred: 0,
       speed: 0,
@@ -202,7 +215,7 @@ export class Session {
       if (this.timer) clearTimeout(this.timer)
       if (this.snapshot.direction === "send") {
         this.update({ state: "confirm" }, true)
-        this.sendControl({ t: "meta", files: this.snapshot.files })
+        this.sendControl({ t: "meta", files: this.snapshot.files, text: this.snapshot.textLength })
       }
     }
     dc.onmessage = (ev) => {
@@ -219,10 +232,17 @@ export class Session {
           size: Math.max(0, Number(f.size) || 0),
           type: String(f.type || ""),
         }))
+        const textLength = Math.min(MAX_TEXT, Math.max(0, Number(msg.text) || 0))
         this.update(
-          { files, total: files.reduce((n, f) => n + f.size, 0), state: "confirm" },
+          { files, textLength, total: files.reduce((n, f) => n + f.size, 0), state: "confirm" },
           true
         )
+        break
+      }
+      case "text": {
+        if (this.snapshot.state !== "transferring") return
+        const text = this.snapshot.text + String(msg.s)
+        this.update({ text: text.slice(0, this.snapshot.textLength) }, true)
         break
       }
       case "accept":
@@ -278,6 +298,12 @@ export class Session {
     const chunk = Math.min(256 * 1024, max)
     this.speedSample = { at: performance.now(), bytes: 0 }
     try {
+      const text = this.snapshot.text
+      for (let p = 0; p < text.length; p += TEXT_SLICE) {
+        if (this.snapshot.state !== "transferring") return
+        if (dc.bufferedAmount > HIGH_WATER) await drained(dc)
+        this.sendControl({ t: "text", s: text.slice(p, p + TEXT_SLICE) })
+      }
       for (let i = 0; i < this.outgoing.length; i++) {
         const file = this.outgoing[i]
         this.sendControl({ t: "file", i })

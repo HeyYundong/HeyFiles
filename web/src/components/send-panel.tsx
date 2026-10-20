@@ -3,8 +3,10 @@ import { HugeiconsIcon } from "@hugeicons/react"
 import { Cancel01Icon, LockIcon, Upload04Icon } from "@hugeicons/core-free-icons"
 
 import { Button } from "@/components/ui/button"
+import { Textarea } from "@/components/ui/textarea"
 import type { Peer } from "@/lib/device"
 import { formatBytes } from "@/lib/format"
+import { MAX_TEXT } from "@/lib/session"
 import { cn } from "@/lib/utils"
 
 export function SendPanel({
@@ -14,9 +16,10 @@ export function SendPanel({
 }: {
   peer: Peer | null
   busy: boolean
-  onSend: (files: File[]) => void
+  onSend: (files: File[], text: string) => void
 }) {
   const [files, setFiles] = useState<File[]>([])
+  const [text, setText] = useState("")
   const [dragging, setDragging] = useState(false)
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -25,6 +28,11 @@ export function SendPanel({
     setFiles((prev) => [...prev, ...Array.from(list)])
   }
   const total = files.reduce((n, f) => n + f.size, 0)
+  const hasText = text.trim().length > 0
+  const parts = [
+    files.length && `${files.length} 个文件 · ${formatBytes(total)}`,
+    hasText && "文字",
+  ].filter(Boolean)
 
   return (
     <div className="flex flex-col gap-4 border bg-card p-5">
@@ -87,25 +95,31 @@ export function SendPanel({
         </ul>
       )}
 
+      <Textarea
+        aria-label="要发送的文字"
+        placeholder="或者输入 / 粘贴一段文字"
+        value={text}
+        maxLength={MAX_TEXT}
+        onChange={(e) => setText(e.target.value)}
+        className="max-h-60"
+      />
+
       <p className="flex items-center gap-2 text-xs text-muted-foreground">
         <HugeiconsIcon icon={LockIcon} strokeWidth={2} className="size-3.5 shrink-0" />
-        点对点加密直传，文件不经过服务器
+        点对点加密直传，内容不经过服务器
       </p>
 
       <Button
         size="lg"
         className="h-11 text-sm"
-        disabled={!peer || files.length === 0 || busy}
+        disabled={!peer || parts.length === 0 || busy}
         onClick={() => {
-          onSend(files)
+          onSend(files, hasText ? text : "")
           setFiles([])
+          setText("")
         }}
       >
-        {busy
-          ? "正在传输中…"
-          : files.length
-            ? `发送 ${files.length} 个文件 · ${formatBytes(total)}`
-            : "发送"}
+        {busy ? "正在传输中…" : parts.length ? `发送 ${parts.join(" + ")}` : "发送"}
       </Button>
     </div>
   )

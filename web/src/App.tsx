@@ -40,7 +40,7 @@ export function App() {
             <SendPanel
               peer={selected}
               busy={busy}
-              onSend={(files) => selected && actions.sendFiles(selected, files)}
+              onSend={(files, text) => selected && actions.send(selected, files, text)}
             />
           </aside>
         </div>
