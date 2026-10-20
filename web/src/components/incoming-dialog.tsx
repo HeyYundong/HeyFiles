@@ -32,7 +32,7 @@ export function IncomingDialog({ session: s }: { session: SessionSnapshot | null
         <DialogContent showCloseButton={false} className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-base">
-              {s.peer.name} 想发送{" "}
+              {s.peer.name} 想发送
               {[s.files.length && `${s.files.length} 个文件`, s.textLength && "一段文字"]
                 .filter(Boolean)
                 .join("和")}

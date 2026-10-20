@@ -93,10 +93,12 @@ export function TransferPanel({ session: s }: { session: SessionSnapshot }) {
           <HugeiconsIcon icon={ArrowRight02Icon} strokeWidth={2} className="size-4" />
           <span>{to}</span>
         </div>
-        <span className="font-mono text-xs text-muted-foreground">
-          {formatBytes(s.transferred)} / {formatBytes(s.total)}
-          {s.state === "transferring" && s.speed > 0 && ` · ${formatSpeed(s.speed)}`}
-        </span>
+        {s.total > 0 && (
+          <span className="font-mono text-xs text-muted-foreground">
+            {formatBytes(s.transferred)} / {formatBytes(s.total)}
+            {s.state === "transferring" && s.speed > 0 && ` · ${formatSpeed(s.speed)}`}
+          </span>
+        )}
       </div>
 
       {s.state === "connecting" && (
